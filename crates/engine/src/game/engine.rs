@@ -40,6 +40,7 @@ use super::priority;
 use super::public_state::{
     bump_state_revision, finalize_public_state, mark_public_state_all_dirty, sync_waiting_for,
 };
+use super::triggers;
 use super::turn_control;
 use super::turns;
 use super::zones;
@@ -2764,6 +2765,7 @@ fn apply_action(
                 ability,
                 timestamp: 0,
                 target_constraints: vec![],
+                distribute: None,
                 trigger_event: None,
                 modal: None,
                 mode_abilities: vec![],
@@ -3227,8 +3229,18 @@ fn apply_action(
                     pending.origin_zone,
                     &mut events,
                 )?
+            } else if let Some(mut pending_trigger) = state.pending_trigger.take() {
+                // CR 601.2d + CR 603.3d: Triggered abilities divide effects
+                // while being put on the stack. The chosen per-target amounts
+                // are resolution data on the resolved ability.
+                pending_trigger.ability.distribution =
+                    Some(distribution.iter().map(|(t, a)| (t.clone(), *a)).collect());
+                triggers::push_pending_trigger_to_stack(state, pending_trigger, &mut events);
+                state.priority_passes.clear();
+                state.priority_pass_count = 0;
+                WaitingFor::Priority { player: p }
             } else {
-                // Resolution-time distribution (triggered ability path).
+                // Resolution-time distribution continuation path.
                 state.waiting_for = WaitingFor::Priority { player: p };
                 state.priority_player = p;
                 effects::drain_pending_continuation(state, &mut events);
@@ -9858,6 +9870,7 @@ mod trigger_target_tests {
             ability,
             timestamp: 1,
             target_constraints: Vec::new(),
+            distribute: None,
             trigger_event: None,
             modal: None,
             mode_abilities: vec![],
@@ -9948,6 +9961,7 @@ mod trigger_target_tests {
             ),
             timestamp: 1,
             target_constraints: Vec::new(),
+            distribute: None,
             trigger_event: None,
             modal: None,
             mode_abilities: vec![],
@@ -9998,6 +10012,7 @@ mod trigger_target_tests {
             ),
             timestamp: 1,
             target_constraints: Vec::new(),
+            distribute: None,
             trigger_event: Some(GameEvent::SpellCast {
                 controller: PlayerId(0),
                 object_id: ObjectId(98),
@@ -10097,6 +10112,7 @@ mod trigger_target_tests {
             ),
             timestamp: 1,
             target_constraints: Vec::new(),
+            distribute: None,
             trigger_event: Some(GameEvent::SpellCast {
                 controller: PlayerId(0),
                 object_id: ObjectId(99),
@@ -10205,6 +10221,7 @@ mod trigger_target_tests {
             ),
             timestamp: 1,
             target_constraints: Vec::new(),
+            distribute: None,
             trigger_event: None,
             modal: Some(ModalChoice {
                 min_choices: 1,
@@ -10304,6 +10321,7 @@ mod trigger_target_tests {
             )),
             timestamp: 1,
             target_constraints: vec![TargetSelectionConstraint::DifferentTargetPlayers],
+            distribute: None,
             trigger_event: None,
             modal: None,
             mode_abilities: vec![],
@@ -10421,6 +10439,7 @@ mod trigger_target_tests {
             )),
             timestamp: 1,
             target_constraints: target_constraints.clone(),
+            distribute: None,
             trigger_event: None,
             modal: None,
             mode_abilities: vec![],
@@ -10491,6 +10510,7 @@ mod trigger_target_tests {
             ),
             timestamp: 1,
             target_constraints: Vec::new(),
+            distribute: None,
             trigger_event: Some(GameEvent::SpellCast {
                 controller: PlayerId(0),
                 object_id: ObjectId(97),
@@ -10597,6 +10617,7 @@ mod trigger_target_tests {
             ),
             timestamp: 1,
             target_constraints: Vec::new(),
+            distribute: None,
             trigger_event: None,
             modal: Some(modal),
             mode_abilities: vec![

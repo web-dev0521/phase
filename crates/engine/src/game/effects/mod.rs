@@ -2273,6 +2273,7 @@ pub fn resolve_ability_chain(
                         ability: reflexive,
                         timestamp: state.turn_number,
                         target_constraints: vec![],
+                        distribute: None,
                         trigger_event: state.current_trigger_event.clone(),
                         modal: None,
                         mode_abilities: vec![],
