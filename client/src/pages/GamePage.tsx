@@ -84,6 +84,7 @@ import { PausedBanner } from "../components/chrome/PausedBanner.tsx";
 import type { P2PAdapterEvent } from "../adapter/p2p-adapter.ts";
 import { WebSocketAdapter } from "../adapter/ws-adapter.ts";
 import type { WsAdapterEvent } from "../adapter/ws-adapter.ts";
+import { MANA_PAYMENT_WAITING_FOR_TYPES } from "../game/waitingForRegistry.ts";
 import { useGameDispatch } from "../hooks/useGameDispatch.ts";
 import { useInspectHoverProps } from "../hooks/useInspectHoverProps.ts";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts.ts";
@@ -1188,7 +1189,8 @@ function GamePageContent({
         {waitingFor != null &&
           CLICK_THROUGH_WAITING_FOR_TYPES.has(waitingFor.type) &&
           canActForWaitingState && <TargetingOverlay />}
-        {waitingFor?.type === "ManaPayment" &&
+        {waitingFor != null &&
+          MANA_PAYMENT_WAITING_FOR_TYPES.has(waitingFor.type) &&
           canActForWaitingState && <ManaPaymentUI />}
         {waitingFor?.type === "ChooseXValue" &&
           canActForWaitingState && <ChooseXValueUI />}
