@@ -130,6 +130,7 @@ The easiest way to run a dedicated multiplayer server is the Docker image:
 ```bash
 docker volume create phase-server-data
 docker run -d \
+  --platform linux/amd64 \
   --name phase-server \
   --restart unless-stopped \
   -p 9374:9374 \
@@ -163,7 +164,7 @@ Docker uses environment variables for the common options:
 You can also pass server flags after the image name:
 
 ```bash
-docker run --rm -p 9374:9374 ghcr.io/phase-rs/phase-server:latest --lobby-only --cors-origin '*'
+docker run --rm --platform linux/amd64 -p 9374:9374 ghcr.io/phase-rs/phase-server:latest --lobby-only --cors-origin '*'
 ```
 
 For public internet play, put the container behind a TLS reverse proxy and give
@@ -172,6 +173,7 @@ same host, bind Docker to localhost instead:
 
 ```bash
 docker run -d \
+  --platform linux/amd64 \
   --name phase-server \
   --restart unless-stopped \
   -p 127.0.0.1:9374:9374 \
