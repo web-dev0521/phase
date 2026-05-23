@@ -2,7 +2,38 @@ import { isTauri } from "./sidecar";
 import { useMultiplayerStore } from "../stores/multiplayerStore";
 
 const DEFAULT_PORT = 9374;
-export const DEFAULT_SERVER = "wss://us.phase-rs.dev/ws";
+
+/** Which national flag to show beside a canonical region. The EU instance is
+ * hosted in Switzerland, so it carries the Swiss flag rather than a generic
+ * European one. */
+export type FlagCode = "us" | "ch";
+
+export interface ServerPreset {
+  label: string;
+  url: string;
+  flag: FlagCode;
+}
+
+/**
+ * User-pickable canonical regions. Intentionally US-only: additional official
+ * endpoints (e.g. an EU region) belong in the client failover manifest consumed
+ * automatically — exposing them as separate selectable lobbies would fragment
+ * the matchmaking pool, which defeats the broker's purpose. Self-hosted servers
+ * are entered via the custom-URL field, not here. The `ch` FlagCode and Swiss
+ * flag are retained for that forthcoming manifest (see
+ * .planning/lobby-failover-federation-plan.md).
+ */
+export const SERVER_PRESETS: ServerPreset[] = [
+  { label: "US (default)", url: "wss://us.phase-rs.dev/ws", flag: "us" },
+];
+
+/** The default region's URL — first entry in {@link SERVER_PRESETS}. */
+export const DEFAULT_SERVER = SERVER_PRESETS[0].url;
+
+/** Flag for a known preset server, or `null` for self-hosted/custom addresses. */
+export function flagForServer(url: string): FlagCode | null {
+  return SERVER_PRESETS.find((p) => p.url === url)?.flag ?? null;
+}
 
 export function parseWebSocketUrl(value: string): URL | null {
   try {
