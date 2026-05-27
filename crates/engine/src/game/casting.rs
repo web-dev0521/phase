@@ -9416,6 +9416,143 @@ mod tests {
     }
 
     #[test]
+    fn activated_sacrifice_cost_resumes_to_effect_target_selection() {
+        let mut state = setup_game_at_main_phase();
+        let source = create_object(
+            &mut state,
+            CardId(931),
+            PlayerId(0),
+            "Arcade Cabinet".to_string(),
+            Zone::Battlefield,
+        );
+        {
+            let obj = state.objects.get_mut(&source).unwrap();
+            obj.card_types.core_types.push(CoreType::Artifact);
+            Arc::make_mut(&mut obj.abilities).push(
+                AbilityDefinition::new(
+                    AbilityKind::Activated,
+                    Effect::Double {
+                        target_kind: crate::types::ability::DoubleTarget::Counters {
+                            counter_type: None,
+                        },
+                        target: TargetFilter::Typed(TypedFilter::new(TypeFilter::Creature)),
+                    },
+                )
+                .cost(AbilityCost::Composite {
+                    costs: vec![
+                        AbilityCost::Mana {
+                            cost: ManaCost::Cost {
+                                shards: vec![],
+                                generic: 2,
+                            },
+                        },
+                        AbilityCost::Tap,
+                        AbilityCost::Sacrifice {
+                            target: TargetFilter::Typed(
+                                TypedFilter::permanent().properties(vec![FilterProp::Token]),
+                            ),
+                            count: 1,
+                        },
+                    ],
+                }),
+            );
+        }
+        let token = create_object(
+            &mut state,
+            CardId(932),
+            PlayerId(0),
+            "Treasure".to_string(),
+            Zone::Battlefield,
+        );
+        {
+            let obj = state.objects.get_mut(&token).unwrap();
+            obj.card_types.core_types.push(CoreType::Artifact);
+            obj.is_token = true;
+        }
+        let creature = create_object(
+            &mut state,
+            CardId(933),
+            PlayerId(0),
+            "Countered Creature".to_string(),
+            Zone::Battlefield,
+        );
+        {
+            let obj = state.objects.get_mut(&creature).unwrap();
+            obj.card_types.core_types.push(CoreType::Creature);
+            obj.counters
+                .insert(crate::types::counter::CounterType::Plus1Plus1, 2);
+        }
+        let other_creature = create_object(
+            &mut state,
+            CardId(934),
+            PlayerId(1),
+            "Other Creature".to_string(),
+            Zone::Battlefield,
+        );
+        state
+            .objects
+            .get_mut(&other_creature)
+            .unwrap()
+            .card_types
+            .core_types
+            .push(CoreType::Creature);
+        add_mana(&mut state, PlayerId(0), ManaType::Colorless, 2);
+
+        let waiting = handle_activate_ability(&mut state, PlayerId(0), source, 0, &mut Vec::new())
+            .expect("activation should ask for the token sacrifice cost first");
+        state.waiting_for = waiting;
+        let WaitingFor::SacrificeForCost {
+            permanents, count, ..
+        } = &state.waiting_for
+        else {
+            panic!("expected SacrificeForCost, got {:?}", state.waiting_for);
+        };
+        assert_eq!(*count, 1);
+        assert_eq!(permanents, &vec![token]);
+
+        apply_as_current(&mut state, GameAction::SelectCards { cards: vec![token] })
+            .expect("sacrificing the token should resume activation");
+        let WaitingFor::TargetSelection {
+            target_slots,
+            selection,
+            ..
+        } = &state.waiting_for
+        else {
+            panic!("expected TargetSelection, got {:?}", state.waiting_for);
+        };
+        assert_eq!(target_slots.len(), 1);
+        assert!(
+            selection
+                .current_legal_targets
+                .contains(&TargetRef::Object(creature)),
+            "the post-cost target prompt must include the target creature"
+        );
+        assert!(
+            selection
+                .current_legal_targets
+                .contains(&TargetRef::Object(other_creature)),
+            "the post-cost target prompt must include each legal target creature"
+        );
+
+        apply_as_current(
+            &mut state,
+            GameAction::ChooseTarget {
+                target: Some(TargetRef::Object(creature)),
+            },
+        )
+        .expect("target creature should be selectable");
+        apply_as_current(&mut state, GameAction::PassPriority).unwrap();
+        apply_as_current(&mut state, GameAction::PassPriority).unwrap();
+
+        assert_eq!(
+            state.objects[&creature]
+                .counters
+                .get(&crate::types::counter::CounterType::Plus1Plus1),
+            Some(&4)
+        );
+    }
+
+    #[test]
     fn targeted_composite_mana_tap_activation_excludes_source_after_target_selection() {
         let mut state = setup_game_at_main_phase();
         let cost = AbilityCost::Composite {
