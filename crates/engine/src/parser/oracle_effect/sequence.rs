@@ -2996,9 +2996,7 @@ pub(super) fn parse_followup_continuation_ast(
             // Cunning Rhetoric path) rather than the blocked-attacker object that
             // `ParentTarget` resolves to in a combat-damage context.
             let player = match dig_player {
-                TargetFilter::ParentTarget => {
-                    super::imperative::that_player_library_filter(ctx)
-                }
+                TargetFilter::ParentTarget => super::imperative::that_player_library_filter(ctx),
                 other => other.clone(),
             };
             Some(ContinuationAst::ExileLookedAtCard {
