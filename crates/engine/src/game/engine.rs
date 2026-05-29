@@ -5889,7 +5889,7 @@ mod tests {
         Arc::make_mut(&mut obj.base_abilities).extend(parsed.abilities);
     }
 
-    fn apply_oracle_to_object(
+    pub(super) fn apply_oracle_to_object(
         state: &mut GameState,
         object_id: ObjectId,
         name: &str,
@@ -13670,6 +13670,7 @@ mod exile_return_tests {
 mod phase_trigger_regression_tests {
     use std::sync::Arc;
 
+    use super::tests::apply_oracle_to_object;
     use super::*;
     use crate::game::combat::AttackTarget;
     use crate::game::zones::create_object;
@@ -15799,6 +15800,71 @@ mod phase_trigger_regression_tests {
         // Verify the choice was stored on the object
         let obj = state.objects.get(&obj_id).unwrap();
         assert_eq!(obj.chosen_color(), Some(ManaColor::Red));
+    }
+
+    #[test]
+    fn glacierwood_siege_resolution_prompts_for_anchor_word_choice() {
+        let mut state = setup_game_at_main_phase();
+        let siege_id = create_object(
+            &mut state,
+            CardId(621),
+            PlayerId(0),
+            "Glacierwood Siege".to_string(),
+            Zone::Stack,
+        );
+        {
+            let obj = state.objects.get_mut(&siege_id).unwrap();
+            obj.card_types.core_types.push(CoreType::Enchantment);
+            obj.base_card_types = obj.card_types.clone();
+        }
+        apply_oracle_to_object(
+            &mut state,
+            siege_id,
+            "Glacierwood Siege",
+            "As this enchantment enters, choose Temur or Sultai.\n\
+• Temur — Whenever you cast an instant or sorcery spell, target player mills four cards.\n\
+• Sultai — You may play lands from your graveyard.",
+        );
+
+        state.stack.push_back(StackEntry {
+            id: siege_id,
+            source_id: siege_id,
+            controller: PlayerId(0),
+            kind: StackEntryKind::Spell {
+                card_id: CardId(621),
+                ability: None,
+                casting_variant: crate::types::game_state::CastingVariant::Normal,
+                actual_mana_spent: 0,
+            },
+        });
+
+        apply_as_current(&mut state, GameAction::PassPriority).unwrap();
+        let resolve = apply_as_current(&mut state, GameAction::PassPriority).unwrap();
+
+        assert!(state.battlefield.contains(&siege_id));
+        match resolve.waiting_for {
+            WaitingFor::NamedChoice {
+                player,
+                choice_type: crate::types::ability::ChoiceType::Labeled { ref options },
+                source_id,
+                ..
+            } => {
+                assert_eq!(player, PlayerId(0));
+                assert_eq!(source_id, Some(siege_id));
+                assert_eq!(options, &vec!["Temur".to_string(), "Sultai".to_string()]);
+            }
+            other => panic!("expected Glacierwood Siege anchor choice, got {other:?}"),
+        }
+
+        apply_as_current(
+            &mut state,
+            GameAction::ChooseOption {
+                choice: "Temur".to_string(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(state.objects[&siege_id].chosen_label(), Some("Temur"));
     }
 
     #[test]
