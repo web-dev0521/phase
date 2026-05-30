@@ -1034,10 +1034,11 @@ pub(super) fn matching_damage_done_once_by_controller_event(
         return None;
     }
 
-    // CR 120.1 + CR 510.2 + CR 603.7c: Filter to matching sources using the
-    // step-local per-source amounts carried by the event. This avoids summing
-    // `damage_dealt_this_turn` which accumulates across combat damage steps and
-    // would inflate the total on double-strike or extra-combat triggers.
+    // CR 120.1 + CR 510.2 + CR 608.2c: Filter to matching sources using the
+    // step-local per-source amounts carried by the event (the resolving ability
+    // reads its triggering-event context per the function header above). This
+    // avoids summing `damage_dealt_this_turn` which accumulates across combat
+    // damage steps and would inflate the total on double-strike / extra-combat.
     let matching_sources: Vec<(ObjectId, u32)> = if let Some(filter) = &trigger.valid_source {
         source_amounts
             .iter()
@@ -5470,7 +5471,7 @@ mod tests {
 
     #[test]
     fn matching_damage_done_once_by_controller_event_computes_filtered_total() {
-        // CR 120.1 + CR 510.2 + CR 603.7c: when only a subset of the
+        // CR 120.1 + CR 510.2 + CR 608.2c: when only a subset of the
         // combat-damage sources satisfy the trigger's source filter, the rebuilt
         // event's total_damage must reflect ONLY the matching sources' damage —
         // not the aggregate. The per-source amounts come directly from the

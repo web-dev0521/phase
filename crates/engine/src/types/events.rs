@@ -443,6 +443,17 @@ pub enum GameEvent {
         /// in `matching_damage_done_once_by_controller_event`: each
         /// `apply_combat_damage` call produces exactly one event per player with
         /// the amounts from that step only.
+        ///
+        /// Migration note: this field replaces the former `source_ids:
+        /// Vec<ObjectId>`. `#[serde(default)]` keeps deserialization of older
+        /// persisted state infallible, but an old-format event (a game persisted
+        /// mid-combat-damage-trigger by a pre-rename binary and restored after an
+        /// upgrade) decodes to an empty set — the legacy `source_ids` array is
+        /// dropped. This is acceptable: the event is transient (produced and
+        /// consumed within one combat-damage step), the window is the rare
+        /// mid-trigger save across a server upgrade, and it degrades to "no
+        /// matching sources" rather than crashing. The old format carried no
+        /// amounts, so no migration shim could recover `total_damage` regardless.
         #[serde(default)]
         source_amounts: Vec<(ObjectId, u32)>,
         /// CR 120.1: Total actual damage dealt to this player in this combat

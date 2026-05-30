@@ -650,11 +650,9 @@ pub(crate) fn apply_combat_damage(
 ) -> Vec<GameEvent> {
     let mut events = Vec::new();
     // CR 510.2: accumulates per-player, per-source damage for this step only.
-    let mut combat_damage_to_players: Vec<(
-        crate::types::player::PlayerId,
-        Vec<(ObjectId, u32)>,
-        u32,
-    )> = Vec::new();
+    // `(player, [(source_id, amount)], step_total)`.
+    type PerPlayerCombatDamage = (crate::types::player::PlayerId, Vec<(ObjectId, u32)>, u32);
+    let mut combat_damage_to_players: Vec<PerPlayerCombatDamage> = Vec::new();
 
     // --- Phase A: Collect proposed damage events (CR 510.2) ---
     // Gated assignments (0-damage, protection, prohibition) contribute nothing
